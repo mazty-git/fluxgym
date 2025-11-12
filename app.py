@@ -822,96 +822,36 @@ def init_advanced():
     return advanced_components, advanced_component_ids
 
 
+def load_css():
+    """Load CSS from external file"""
+    css_path = os.path.join(os.path.dirname(__file__), "ui", "styles.css")
+    try:
+        with open(css_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"Warning: CSS file not found at {css_path}")
+        return ""
+
+
+def load_js():
+    """Load JavaScript from external file"""
+    js_path = os.path.join(os.path.dirname(__file__), "ui", "scripts.js")
+    try:
+        with open(js_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"Warning: JS file not found at {js_path}")
+        return "function() {}"
+
+
 theme = gr.themes.Monochrome(
     text_size=gr.themes.Size(lg="18px", md="15px", sm="13px", xl="22px", xs="12px", xxl="24px", xxs="9px"),
     font=[gr.themes.GoogleFont("Source Sans Pro"), "ui-sans-serif", "system-ui", "sans-serif"],
 )
-css = """
-@keyframes rotate {
-    0% {
-        transform: rotate(0deg);
-    }
-    100% {
-        transform: rotate(360deg);
-    }
-}
-#advanced_options .advanced:nth-child(even) { background: rgba(0,0,100,0.04) !important; }
-h1{font-family: georgia; font-style: italic; font-weight: bold; font-size: 30px; letter-spacing: -1px;}
-h3{margin-top: 0}
-.tabitem{border: 0px}
-.group_padding{}
-nav{position: fixed; top: 0; left: 0; right: 0; z-index: 1000; text-align: center; padding: 10px; box-sizing: border-box; display: flex; align-items: center; backdrop-filter: blur(10px); }
-nav button { background: none; color: firebrick; font-weight: bold; border: 2px solid firebrick; padding: 5px 10px; border-radius: 5px; font-size: 14px; }
-nav img { height: 40px; width: 40px; border-radius: 40px; }
-nav img.rotate { animation: rotate 2s linear infinite; }
-.flexible { flex-grow: 1; }
-.tast-details { margin: 10px 0 !important; }
-.toast-wrap { bottom: var(--size-4) !important; top: auto !important; border: none !important; backdrop-filter: blur(10px); }
-.toast-title, .toast-text, .toast-icon, .toast-close { color: black !important; font-size: 14px; }
-.toast-body { border: none !important; }
-#terminal { box-shadow: none !important; margin-bottom: 25px; background: rgba(0,0,0,0.03); }
-#terminal .generating { border: none !important; }
-#terminal label { position: absolute !important; }
-.tabs { margin-top: 50px; }
-.hidden { display: none !important; }
-.codemirror-wrapper .cm-line { font-size: 12px !important; }
-label { font-weight: bold !important; }
-#start_training.clicked { background: silver; color: black; }
-#captioning_container { max-height: 500px; overflow-y: auto; overflow-x: hidden; padding: 10px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; background: rgba(0,0,0,0.02); }
-#captioning_container::-webkit-scrollbar { width: 8px; }
-#captioning_container::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 4px; }
-#captioning_container::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
-#captioning_container::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
-#caption_summary { padding: 10px; background: rgba(0,100,200,0.05); border-left: 3px solid rgba(0,100,200,0.5); margin-bottom: 10px; border-radius: 4px; font-size: 14px; }
-"""
 
-js = """
-function() {
-    let autoscroll = document.querySelector("#autoscroll")
-    if (window.iidxx) {
-        window.clearInterval(window.iidxx);
-    }
-    window.iidxx = window.setInterval(function() {
-        let text=document.querySelector(".codemirror-wrapper .cm-line").innerText.trim()
-        let img = document.querySelector("#logo")
-        if (text.length > 0) {
-            autoscroll.classList.remove("hidden")
-            if (autoscroll.classList.contains("on")) {
-                autoscroll.textContent = "Autoscroll ON"
-                window.scrollTo(0, document.body.scrollHeight, { behavior: "smooth" });
-                img.classList.add("rotate")
-            } else {
-                autoscroll.textContent = "Autoscroll OFF"
-                img.classList.remove("rotate")
-            }
-        }
-    }, 500);
-    console.log("autoscroll", autoscroll)
-    autoscroll.addEventListener("click", (e) => {
-        autoscroll.classList.toggle("on")
-    })
-    function debounce(fn, delay) {
-        let timeoutId;
-        return function(...args) {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => fn(...args), delay);
-        };
-    }
-
-    function handleClick() {
-        console.log("refresh")
-        document.querySelector("#refresh").click();
-    }
-    const debouncedClick = debounce(handleClick, 1000);
-    document.addEventListener("input", debouncedClick);
-
-    document.querySelector("#start_training").addEventListener("click", (e) => {
-      e.target.classList.add("clicked")
-      e.target.innerHTML = "Training..."
-    })
-
-}
-"""
+# Load external CSS and JS
+css = load_css()
+js = load_js()
 
 current_account = account_hf()
 print(f"current_account={current_account}")
