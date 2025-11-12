@@ -1011,7 +1011,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
             with gr.Row():
                 terminal = LogsView(label="Train log", elem_id="terminal")
             with gr.Row():
-                gallery = gr.Gallery(get_samples, inputs=[lora_name], label="Samples", every=10, columns=6)
+                gallery = gr.Gallery(label="Samples", columns=6, height="auto")
 
         with gr.TabItem("Publish") as publish_tab:
             hf_token = gr.Textbox(label="Huggingface Token")
@@ -1123,6 +1123,8 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
     )
     do_captioning.click(fn=run_captioning, inputs=[images, concept_sentence] + caption_list, outputs=caption_list)
     demo.load(fn=loaded, js=js, outputs=[hf_token, hf_login, hf_logout, repo_owner])
+    # Auto-refresh gallery every 10 seconds to show training samples
+    demo.load(fn=get_samples, inputs=[lora_name], outputs=[gallery], every=10)
     refresh.click(update, inputs=listeners, outputs=[train_script, train_config, dataset_folder])
 if __name__ == "__main__":
     cwd = os.path.dirname(os.path.abspath(__file__))
