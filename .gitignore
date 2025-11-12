@@ -40,6 +40,9 @@ sd-scripts/
 models/
 datasets/
 outputs/
+
+# Future refactoring directories (not yet implemented)
+# Note: ui/ is intentionally tracked as part of the gradual refactoring
 core/
 utils/
 
