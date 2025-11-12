@@ -1,0 +1,143 @@
+@echo off
+setlocal enabledelayedexpansion
+
+echo ==========================================
+echo Fluxgym Setup Script (Windows)
+echo ==========================================
+echo.
+
+REM Check if Python is installed
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo ERROR: Python is not installed or not in PATH.
+    echo Please install Python 3.10 or higher from https://www.python.org/
+    pause
+    exit /b 1
+)
+
+for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
+echo [32m✓[0m Found Python %PYTHON_VERSION%
+echo.
+
+REM Check if sd-scripts exists
+if not exist "sd-scripts" (
+    echo ERROR: sd-scripts directory not found!
+    echo Please run: git clone -b sd3 https://github.com/kohya-ss/sd-scripts
+    pause
+    exit /b 1
+)
+echo [32m✓[0m Found sd-scripts directory
+echo.
+
+REM Create virtual environment
+echo Creating virtual environment...
+if exist "env" (
+    echo   Virtual environment already exists. Skipping creation.
+) else (
+    python -m venv env
+    if errorlevel 1 (
+        echo ERROR: Failed to create virtual environment
+        pause
+        exit /b 1
+    )
+    echo   [32m✓[0m Virtual environment created
+)
+echo.
+
+REM Activate virtual environment
+echo Activating virtual environment...
+call env\Scripts\activate.bat
+if errorlevel 1 (
+    echo ERROR: Failed to activate virtual environment
+    pause
+    exit /b 1
+)
+echo   [32m✓[0m Virtual environment activated
+echo.
+
+REM Install sd-scripts dependencies
+echo Installing sd-scripts dependencies...
+cd sd-scripts
+pip install -r requirements.txt
+if errorlevel 1 (
+    echo ERROR: Failed to install sd-scripts dependencies
+    cd ..
+    pause
+    exit /b 1
+)
+cd ..
+echo   [32m✓[0m sd-scripts dependencies installed
+echo.
+
+REM Install fluxgym dependencies
+echo Installing fluxgym dependencies...
+pip install -r requirements.txt
+if errorlevel 1 (
+    echo ERROR: Failed to install fluxgym dependencies
+    pause
+    exit /b 1
+)
+echo   [32m✓[0m fluxgym dependencies installed
+echo.
+
+REM Ask about GPU type
+echo ==========================================
+echo PyTorch Installation
+echo ==========================================
+echo.
+echo Select your GPU type:
+echo   1) Standard NVIDIA GPU (RTX 30-series, 40-series, etc.) - CUDA 12.1
+echo   2) NVIDIA RTX 50-series (5090, etc.) - CUDA 12.8
+echo.
+set /p gpu_choice="Enter choice [1 or 2]: "
+
+echo.
+if "%gpu_choice%"=="1" (
+    echo Installing PyTorch with CUDA 12.1...
+    pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121
+    if errorlevel 1 (
+        echo ERROR: Failed to install PyTorch
+        pause
+        exit /b 1
+    )
+    echo   [32m✓[0m PyTorch (CUDA 12.1) installed
+) else if "%gpu_choice%"=="2" (
+    echo Installing PyTorch with CUDA 12.8...
+    pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+    if errorlevel 1 (
+        echo ERROR: Failed to install PyTorch
+        pause
+        exit /b 1
+    )
+    echo   [32m✓[0m PyTorch (CUDA 12.8) installed
+    echo.
+    echo Updating bitsandbytes for RTX 50-series support...
+    pip install -U bitsandbytes
+    if errorlevel 1 (
+        echo WARNING: Failed to update bitsandbytes
+    ) else (
+        echo   [32m✓[0m bitsandbytes updated
+    )
+) else (
+    echo Invalid choice. Defaulting to CUDA 12.1...
+    pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121
+    if errorlevel 1 (
+        echo ERROR: Failed to install PyTorch
+        pause
+        exit /b 1
+    )
+    echo   [32m✓[0m PyTorch (CUDA 12.1) installed
+)
+
+echo.
+echo ==========================================
+echo Setup Complete!
+echo ==========================================
+echo.
+echo To start Fluxgym:
+echo   1. Activate the virtual environment: env\Scripts\activate
+echo   2. Run the application: python app.py
+echo.
+echo The application will be available at http://localhost:7860
+echo.
+pause

@@ -80,6 +80,33 @@ Your folder structure will look like this:
   /sd-scripts
 ```
 
+### Option A: Automated Setup (Recommended)
+
+Run the setup script for your operating system:
+
+**Linux/Mac:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+**Windows:**
+```cmd
+setup.bat
+```
+
+The script will:
+- Create a virtual environment
+- Install all dependencies (fluxgym + sd-scripts)
+- Prompt you to select your GPU type (CUDA 12.1 or 12.8)
+- Install the appropriate PyTorch version
+
+After the script completes, skip to the [Start](#start) section.
+
+### Option B: Manual Setup
+
+If you prefer to install manually, follow these steps:
+
 Now activate a venv from the root `fluxgym` folder:
 
 If you're on Windows:
