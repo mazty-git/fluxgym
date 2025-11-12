@@ -16,7 +16,7 @@ if errorlevel 1 (
 )
 
 for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
-echo [32m✓[0m Found Python %PYTHON_VERSION%
+echo [OK] Found Python %PYTHON_VERSION%
 echo.
 
 REM Check if git is installed
@@ -27,7 +27,7 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-echo [32m✓[0m Found Git
+echo [OK] Found Git
 echo.
 
 REM Check if sd-scripts exists, clone if not
@@ -39,9 +39,9 @@ if not exist "sd-scripts" (
         pause
         exit /b 1
     )
-    echo   [32m✓[0m sd-scripts cloned successfully
+    echo   [OK] sd-scripts cloned successfully
 ) else (
-    echo [32m✓[0m Found sd-scripts directory
+    echo [OK] Found sd-scripts directory
 )
 echo.
 
@@ -56,7 +56,7 @@ if exist "env" (
         pause
         exit /b 1
     )
-    echo   [32m✓[0m Virtual environment created
+    echo   [OK] Virtual environment created
 )
 echo.
 
@@ -68,7 +68,7 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-echo   [32m✓[0m Virtual environment activated
+echo   [OK] Virtual environment activated
 echo.
 
 REM Upgrade pip, setuptools, and wheel
@@ -77,7 +77,7 @@ python -m pip install --upgrade pip setuptools wheel
 if errorlevel 1 (
     echo WARNING: Failed to upgrade pip tools, continuing anyway...
 )
-echo   [32m✓[0m pip tools upgraded
+echo   [OK] pip tools upgraded
 echo.
 
 REM Install sd-scripts dependencies
@@ -91,7 +91,7 @@ if errorlevel 1 (
     exit /b 1
 )
 cd ..
-echo   [32m✓[0m sd-scripts dependencies installed
+echo   [OK] sd-scripts dependencies installed
 echo.
 
 REM Install fluxgym dependencies
@@ -102,7 +102,7 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-echo   [32m✓[0m fluxgym dependencies installed
+echo   [OK] fluxgym dependencies installed
 echo.
 
 REM Ask about GPU type
@@ -125,7 +125,7 @@ if "%gpu_choice%"=="1" (
         pause
         exit /b 1
     )
-    echo   [32m✓[0m PyTorch (CUDA 12.1) installed
+    echo   [OK] PyTorch (CUDA 12.1) installed
 ) else if "%gpu_choice%"=="2" (
     echo Installing PyTorch with CUDA 12.8...
     pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
@@ -134,14 +134,14 @@ if "%gpu_choice%"=="1" (
         pause
         exit /b 1
     )
-    echo   [32m✓[0m PyTorch (CUDA 12.8) installed
+    echo   [OK] PyTorch (CUDA 12.8) installed
     echo.
     echo Updating bitsandbytes for RTX 50-series support...
     pip install -U bitsandbytes
     if errorlevel 1 (
         echo WARNING: Failed to update bitsandbytes
     ) else (
-        echo   [32m✓[0m bitsandbytes updated
+        echo   [OK] bitsandbytes updated
     )
 ) else (
     echo Invalid choice. Defaulting to CUDA 12.1...
@@ -151,7 +151,7 @@ if "%gpu_choice%"=="1" (
         pause
         exit /b 1
     )
-    echo   [32m✓[0m PyTorch (CUDA 12.1) installed
+    echo   [OK] PyTorch (CUDA 12.1) installed
 )
 
 echo.
