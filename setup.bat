@@ -71,10 +71,19 @@ if errorlevel 1 (
 echo   [32m✓[0m Virtual environment activated
 echo.
 
+REM Upgrade pip, setuptools, and wheel
+echo Upgrading pip, setuptools, and wheel...
+python -m pip install --upgrade pip setuptools wheel
+if errorlevel 1 (
+    echo WARNING: Failed to upgrade pip tools, continuing anyway...
+)
+echo   [32m✓[0m pip tools upgraded
+echo.
+
 REM Install sd-scripts dependencies
 echo Installing sd-scripts dependencies...
 cd sd-scripts
-pip install -r requirements.txt
+pip install --prefer-binary -r requirements.txt
 if errorlevel 1 (
     echo ERROR: Failed to install sd-scripts dependencies
     cd ..
@@ -87,7 +96,7 @@ echo.
 
 REM Install fluxgym dependencies
 echo Installing fluxgym dependencies...
-pip install -r requirements.txt
+pip install --prefer-binary -r requirements.txt
 if errorlevel 1 (
     echo ERROR: Failed to install fluxgym dependencies
     pause

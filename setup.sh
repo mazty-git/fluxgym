@@ -54,17 +54,23 @@ source env/bin/activate
 echo "  ✓ Virtual environment activated"
 echo ""
 
+# Upgrade pip, setuptools, and wheel
+echo "Upgrading pip, setuptools, and wheel..."
+python3 -m pip install --upgrade pip setuptools wheel
+echo "  ✓ pip tools upgraded"
+echo ""
+
 # Install sd-scripts dependencies
 echo "Installing sd-scripts dependencies..."
 cd sd-scripts
-pip install -r requirements.txt
+pip install --prefer-binary -r requirements.txt
 cd ..
 echo "  ✓ sd-scripts dependencies installed"
 echo ""
 
 # Install fluxgym dependencies
 echo "Installing fluxgym dependencies..."
-pip install -r requirements.txt
+pip install --prefer-binary -r requirements.txt
 echo "  ✓ fluxgym dependencies installed"
 echo ""
 
