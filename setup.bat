@@ -111,8 +111,11 @@ echo PyTorch Installation
 echo ==========================================
 echo.
 echo Select your GPU type:
-echo   1) Standard NVIDIA GPU (RTX 30-series, 40-series, etc.) - CUDA 12.1
-echo   2) NVIDIA RTX 50-series (5090, etc.) - CUDA 12.8
+echo   1) Standard install - CUDA 12.1 (Recommended for all GPUs)
+echo   2) RTX 50-series optimized - CUDA 12.8 (Experimental)
+echo.
+echo NOTE: CUDA 12.1 works for ALL GPUs including RTX 50-series.
+echo       Only choose option 2 if you specifically need CUDA 12.8.
 echo.
 set /p gpu_choice="Enter choice [1 or 2]: "
 
@@ -131,6 +134,9 @@ if "%gpu_choice%"=="1" (
     pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
     if errorlevel 1 (
         echo ERROR: Failed to install PyTorch
+        echo.
+        echo This might be due to CUDA 12.8 compatibility issues.
+        echo Please check that your GPU drivers are up to date.
         pause
         exit /b 1
     )
@@ -139,7 +145,10 @@ if "%gpu_choice%"=="1" (
     echo Updating bitsandbytes for RTX 50-series support...
     pip install -U bitsandbytes
     if errorlevel 1 (
+        echo.
         echo WARNING: Failed to update bitsandbytes
+        echo This might cause issues with RTX 50-series GPUs, but you can continue.
+        echo.
     ) else (
         echo   [OK] bitsandbytes updated
     )
