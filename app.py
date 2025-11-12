@@ -260,6 +260,8 @@ def create_dataset(destination_folder, size, *inputs):
             print(f"{caption_path} already exists. use the existing .txt file")
         else:
             print(f"{caption_path} create a .txt caption file")
+            # Ensure the directory exists before writing
+            os.makedirs(os.path.dirname(caption_path), exist_ok=True)
             with open(caption_path, 'w') as file:
                 file.write(original_caption)
 
