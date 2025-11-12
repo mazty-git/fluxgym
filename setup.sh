@@ -16,13 +16,26 @@ PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
 echo "✓ Found Python $PYTHON_VERSION"
 echo ""
 
-# Check if sd-scripts exists
-if [ ! -d "sd-scripts" ]; then
-    echo "ERROR: sd-scripts directory not found!"
-    echo "Please run: git clone -b sd3 https://github.com/kohya-ss/sd-scripts"
+# Check if git is installed
+if ! command -v git &> /dev/null; then
+    echo "ERROR: Git is not installed. Please install Git first."
     exit 1
 fi
-echo "✓ Found sd-scripts directory"
+echo "✓ Found Git"
+echo ""
+
+# Check if sd-scripts exists, clone if not
+if [ ! -d "sd-scripts" ]; then
+    echo "sd-scripts directory not found. Cloning from GitHub..."
+    git clone -b sd3 https://github.com/kohya-ss/sd-scripts
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to clone sd-scripts repository"
+        exit 1
+    fi
+    echo "  ✓ sd-scripts cloned successfully"
+else
+    echo "✓ Found sd-scripts directory"
+fi
 echo ""
 
 # Create virtual environment

@@ -19,14 +19,30 @@ for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
 echo [32m✓[0m Found Python %PYTHON_VERSION%
 echo.
 
-REM Check if sd-scripts exists
-if not exist "sd-scripts" (
-    echo ERROR: sd-scripts directory not found!
-    echo Please run: git clone -b sd3 https://github.com/kohya-ss/sd-scripts
+REM Check if git is installed
+git --version >nul 2>&1
+if errorlevel 1 (
+    echo ERROR: Git is not installed or not in PATH.
+    echo Please install Git from https://git-scm.com/download/win
     pause
     exit /b 1
 )
-echo [32m✓[0m Found sd-scripts directory
+echo [32m✓[0m Found Git
+echo.
+
+REM Check if sd-scripts exists, clone if not
+if not exist "sd-scripts" (
+    echo sd-scripts directory not found. Cloning from GitHub...
+    git clone -b sd3 https://github.com/kohya-ss/sd-scripts
+    if errorlevel 1 (
+        echo ERROR: Failed to clone sd-scripts repository
+        pause
+        exit /b 1
+    )
+    echo   [32m✓[0m sd-scripts cloned successfully
+) else (
+    echo [32m✓[0m Found sd-scripts directory
+)
 echo.
 
 REM Create virtual environment
