@@ -235,6 +235,9 @@ def create_dataset(destination_folder, size, *inputs):
     if not os.path.exists(destination_folder):
         os.makedirs(destination_folder)
 
+    # Track image index separately from file index to properly map captions
+    image_index = 0
+
     for index, image in enumerate(images):
         # copy the images to the datasets folder
         new_image_path = shutil.copy(image, destination_folder)
@@ -248,8 +251,8 @@ def create_dataset(destination_folder, size, *inputs):
         resize_image(new_image_path, new_image_path, size)
 
         # copy the captions
-
-        original_caption = inputs[index + 1]
+        # Use image_index instead of index to properly map to caption inputs
+        original_caption = inputs[image_index + 1]
 
         image_file_name = os.path.basename(new_image_path)
         caption_file_name = os.path.splitext(image_file_name)[0] + ".txt"
@@ -264,6 +267,9 @@ def create_dataset(destination_folder, size, *inputs):
             os.makedirs(os.path.dirname(caption_path), exist_ok=True)
             with open(caption_path, 'w') as file:
                 file.write(original_caption)
+
+        # Increment image index only for actual image files
+        image_index += 1
 
     print(f"destination_folder {destination_folder}")
     return destination_folder
@@ -537,7 +543,9 @@ keep_tokens = 1
 
 def update_total_steps(max_train_epochs, num_repeats, images):
     try:
-        num_images = len(images)
+        # Filter out .txt caption files, only count actual image files
+        image_files = [img for img in images if not (isinstance(img, str) and img.lower().endswith('.txt'))]
+        num_images = len(image_files)
         total_steps = max_train_epochs * num_images * num_repeats
         print(f"max_train_epochs={max_train_epochs} num_images={num_images}, num_repeats={num_repeats}, total_steps={total_steps}")
         return gr.update(value = total_steps)
