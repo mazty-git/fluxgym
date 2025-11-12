@@ -184,6 +184,16 @@ def load_captioning(uploaded_files, concept_sentence):
     # Update for the captioning_area
     # for _ in range(3):
     updates.append(gr.update(visible=True))
+
+    # Update caption summary
+    num_images = len(uploaded_images)
+    num_with_captions = len([img for img in uploaded_images if os.path.splitext(os.path.basename(img))[0] in txt_files_dict])
+    summary_text = f"**{num_images} images loaded**"
+    if num_with_captions > 0:
+        summary_text += f" • {num_with_captions} with existing captions"
+    summary_text += f" • Scroll down to edit captions"
+    updates.append(gr.update(value=summary_text, visible=True))
+
     # Update visibility and image for each captioning row and image
     for i in range(1, MAX_IMAGES + 1):
         # Determine if the current row and image should be visible
@@ -214,7 +224,7 @@ def load_captioning(uploaded_files, concept_sentence):
     return updates
 
 def hide_captioning():
-    return gr.update(visible=False), gr.update(visible=False)
+    return gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
 
 def resize_image(image_path, output_path, size):
     with Image.open(image_path) as img:
@@ -847,6 +857,12 @@ nav img.rotate { animation: rotate 2s linear infinite; }
 .codemirror-wrapper .cm-line { font-size: 12px !important; }
 label { font-weight: bold !important; }
 #start_training.clicked { background: silver; color: black; }
+#captioning_container { max-height: 500px; overflow-y: auto; overflow-x: hidden; padding: 10px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; background: rgba(0,0,0,0.02); }
+#captioning_container::-webkit-scrollbar { width: 8px; }
+#captioning_container::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 4px; }
+#captioning_container::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+#captioning_container::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
+#caption_summary { padding: 10px; background: rgba(0,100,200,0.05); border-left: 3px solid rgba(0,100,200,0.5); margin-bottom: 10px; border-radius: 4px; font-size: 14px; }
 """
 
 js = """
@@ -956,31 +972,34 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                         )
                     with gr.Group(visible=False) as captioning_area:
                         do_captioning = gr.Button("Add AI captions with Florence-2")
+                        caption_summary = gr.Markdown("", elem_id="caption_summary", visible=False)
                         output_components.append(captioning_area)
+                        output_components.append(caption_summary)
                         #output_components = [captioning_area]
                         caption_list = []
-                        for i in range(1, MAX_IMAGES + 1):
-                            locals()[f"captioning_row_{i}"] = gr.Row(visible=False)
-                            with locals()[f"captioning_row_{i}"]:
-                                locals()[f"image_{i}"] = gr.Image(
-                                    type="filepath",
-                                    width=111,
-                                    height=111,
-                                    min_width=111,
-                                    interactive=False,
-                                    scale=2,
-                                    show_label=False,
-                                    show_share_button=False,
-                                    show_download_button=False,
-                                )
-                                locals()[f"caption_{i}"] = gr.Textbox(
-                                    label=f"Caption {i}", scale=15, interactive=True
-                                )
+                        with gr.Column(elem_id="captioning_container"):
+                            for i in range(1, MAX_IMAGES + 1):
+                                locals()[f"captioning_row_{i}"] = gr.Row(visible=False)
+                                with locals()[f"captioning_row_{i}"]:
+                                    locals()[f"image_{i}"] = gr.Image(
+                                        type="filepath",
+                                        width=111,
+                                        height=111,
+                                        min_width=111,
+                                        interactive=False,
+                                        scale=2,
+                                        show_label=False,
+                                        show_share_button=False,
+                                        show_download_button=False,
+                                    )
+                                    locals()[f"caption_{i}"] = gr.Textbox(
+                                        label=f"Caption {i}", scale=15, interactive=True
+                                    )
 
-                            output_components.append(locals()[f"captioning_row_{i}"])
-                            output_components.append(locals()[f"image_{i}"])
-                            output_components.append(locals()[f"caption_{i}"])
-                            caption_list.append(locals()[f"caption_{i}"])
+                                output_components.append(locals()[f"captioning_row_{i}"])
+                                output_components.append(locals()[f"image_{i}"])
+                                output_components.append(locals()[f"caption_{i}"])
+                                caption_list.append(locals()[f"caption_{i}"])
                 with gr.Column():
                     gr.Markdown(
                         """# Step 3. Train
@@ -1082,7 +1101,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
     )
     images.clear(
         hide_captioning,
-        outputs=[captioning_area, start]
+        outputs=[captioning_area, caption_summary, start]
     )
     max_train_epochs.change(
         fn=update_total_steps,
