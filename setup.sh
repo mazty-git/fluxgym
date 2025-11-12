@@ -80,8 +80,11 @@ echo "PyTorch Installation"
 echo "=========================================="
 echo ""
 echo "Select your GPU type:"
-echo "  1) Standard NVIDIA GPU (RTX 30-series, 40-series, etc.) - CUDA 12.1"
-echo "  2) NVIDIA RTX 50-series (5090, etc.) - CUDA 12.8"
+echo "  1) Standard install - CUDA 12.1 (Recommended for all GPUs)"
+echo "  2) RTX 50-series optimized - CUDA 12.8 (Experimental)"
+echo ""
+echo "NOTE: CUDA 12.1 works for ALL GPUs including RTX 50-series."
+echo "      Only choose option 2 if you specifically need CUDA 12.8."
 echo ""
 read -p "Enter choice [1 or 2]: " gpu_choice
 
@@ -89,12 +92,12 @@ echo ""
 case $gpu_choice in
     1)
         echo "Installing PyTorch with CUDA 12.1..."
-        pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
         echo "  ✓ PyTorch (CUDA 12.1) installed"
         ;;
     2)
         echo "Installing PyTorch with CUDA 12.8..."
-        pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
         echo "  ✓ PyTorch (CUDA 12.8) installed"
         echo ""
         echo "Updating bitsandbytes for RTX 50-series support..."
@@ -103,7 +106,7 @@ case $gpu_choice in
         ;;
     *)
         echo "Invalid choice. Defaulting to CUDA 12.1..."
-        pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
         echo "  ✓ PyTorch (CUDA 12.1) installed"
         ;;
 esac
