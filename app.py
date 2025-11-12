@@ -205,7 +205,7 @@ def load_captioning(uploaded_files, concept_sentence):
         if(image_value):
             base_name = os.path.splitext(os.path.basename(image_value))[0]
             if base_name in txt_files_dict:
-                with open(txt_files_dict[base_name], 'r') as file:
+                with open(txt_files_dict[base_name], 'r', encoding='utf-8') as file:
                     corresponding_caption = file.read()
 
         # Update value of captioning area
@@ -265,7 +265,7 @@ def create_dataset(destination_folder, size, *inputs):
             print(f"{caption_path} already exists. use the existing .txt file")
         else:
             print(f"{caption_path} create a .txt caption file")
-            with open(caption_path, 'w') as file:
+            with open(caption_path, 'w', encoding='utf-8') as file:
                 file.write(original_caption)
 
     print(f"destination_folder {destination_folder}")
@@ -533,7 +533,9 @@ keep_tokens = 1
 
 def update_total_steps(max_train_epochs, num_repeats, images):
     try:
-        num_images = len(images)
+        # Filter out non-image files (like .txt caption files)
+        image_files = [img for img in images if not img.endswith('.txt')] if images else []
+        num_images = len(image_files)
         total_steps = max_train_epochs * num_images * num_repeats
         print(f"max_train_epochs={max_train_epochs} num_images={num_images}, num_repeats={num_repeats}, total_steps={total_steps}")
         return gr.update(value = total_steps)
