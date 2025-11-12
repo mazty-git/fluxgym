@@ -92,12 +92,12 @@ echo ""
 case $gpu_choice in
     1)
         echo "Installing PyTorch with CUDA 12.1..."
-        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+        pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
         echo "  ✓ PyTorch (CUDA 12.1) installed"
         ;;
     2)
-        echo "Installing PyTorch with CUDA 12.8..."
-        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+        echo "Installing PyTorch with CUDA 12.8 (nightly build for RTX 50-series)..."
+        pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
         echo "  ✓ PyTorch (CUDA 12.8) installed"
         echo ""
         echo "Updating bitsandbytes for RTX 50-series support..."
@@ -106,7 +106,7 @@ case $gpu_choice in
         ;;
     *)
         echo "Invalid choice. Defaulting to CUDA 12.1..."
-        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+        pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
         echo "  ✓ PyTorch (CUDA 12.1) installed"
         ;;
 esac

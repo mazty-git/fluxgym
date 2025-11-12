@@ -122,7 +122,7 @@ set /p gpu_choice="Enter choice [1 or 2]: "
 echo.
 if "%gpu_choice%"=="1" (
     echo Installing PyTorch with CUDA 12.1...
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
     if errorlevel 1 (
         echo ERROR: Failed to install PyTorch
         pause
@@ -135,13 +135,13 @@ if "%gpu_choice%"=="1" (
     echo OPTION 2 SELECTED - CUDA 12.8
     echo ==========================================
     echo.
-    echo Installing PyTorch with CUDA 12.8...
-    echo Command: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+    echo Installing PyTorch with CUDA 12.8 (nightly build for RTX 50-series)...
+    echo Command: pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
     echo.
     echo Starting installation... Please wait...
     echo.
 
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+    pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
 
     echo.
     echo.
@@ -183,7 +183,7 @@ if "%gpu_choice%"=="1" (
     echo.
 ) else (
     echo Invalid choice. Defaulting to CUDA 12.1...
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
     if errorlevel 1 (
         echo ERROR: Failed to install PyTorch
         pause
