@@ -396,8 +396,8 @@ def gen_sh(
 
     print(f"gen_sh: network_dim:{network_dim}, max_train_epochs={max_train_epochs}, save_every_n_epochs={save_every_n_epochs}, timestep_sampling={timestep_sampling}, guidance_scale={guidance_scale}, vram={vram}, sample_prompts={sample_prompts}, sample_every_n_steps={sample_every_n_steps}")
 
-    output_dir = resolve_path(f"outputs/{output_name}")
-    sample_prompts_path = resolve_path(f"outputs/{output_name}/sample_prompts.txt")
+    output_dir = resolve_path_without_quotes(f"outputs/{output_name}")
+    sample_prompts_path = resolve_path_without_quotes(f"outputs/{output_name}/sample_prompts.txt")
 
     line_break = "\\"
     file_type = "sh"
@@ -408,7 +408,7 @@ def gen_sh(
     ############# Sample args ########################
     sample = ""
     if len(sample_prompts) > 0 and sample_every_n_steps > 0:
-        sample = f"""--sample_prompts={sample_prompts_path} --sample_every_n_steps="{sample_every_n_steps}" {line_break}"""
+        sample = f"""--sample_prompts="{sample_prompts_path}" --sample_every_n_steps="{sample_every_n_steps}" {line_break}"""
 
 
     ############# Optimizer args ########################
@@ -447,19 +447,19 @@ def gen_sh(
     else:
         model_folder = f"models/unet/{repo}"
     model_path = os.path.join(model_folder, model_file)
-    pretrained_model_path = resolve_path(model_path)
+    pretrained_model_path = resolve_path_without_quotes(model_path)
 
-    clip_path = resolve_path("models/clip/clip_l.safetensors")
-    t5_path = resolve_path("models/clip/t5xxl_fp16.safetensors")
-    ae_path = resolve_path("models/vae/ae.sft")
+    clip_path = resolve_path_without_quotes("models/clip/clip_l.safetensors")
+    t5_path = resolve_path_without_quotes("models/clip/t5xxl_fp16.safetensors")
+    ae_path = resolve_path_without_quotes("models/vae/ae.sft")
     sh = f"""accelerate launch {line_break}
   --mixed_precision bf16 {line_break}
   --num_cpu_threads_per_process 1 {line_break}
   sd-scripts/flux_train_network.py {line_break}
-  --pretrained_model_name_or_path {pretrained_model_path} {line_break}
-  --clip_l {clip_path} {line_break}
-  --t5xxl {t5_path} {line_break}
-  --ae {ae_path} {line_break}
+  --pretrained_model_name_or_path "{pretrained_model_path}" {line_break}
+  --clip_l "{clip_path}" {line_break}
+  --t5xxl "{t5_path}" {line_break}
+  --ae "{ae_path}" {line_break}
   --cache_latents_to_disk {line_break}
   --save_model_as safetensors {line_break}
   --sdpa --persistent_data_loader_workers {line_break}
@@ -478,8 +478,8 @@ def gen_sh(
   --highvram {line_break}
   --max_train_epochs {max_train_epochs} {line_break}
   --save_every_n_epochs {save_every_n_epochs} {line_break}
-  --dataset_config {resolve_path(f"outputs/{output_name}/dataset.toml")} {line_break}
-  --output_dir {output_dir} {line_break}
+  --dataset_config "{resolve_path_without_quotes(f"outputs/{output_name}/dataset.toml")}" {line_break}
+  --output_dir "{output_dir}" {line_break}
   --output_name {output_name} {line_break}
   --timestep_sampling {timestep_sampling} {line_break}
   --discrete_flow_shift 3.1582 {line_break}
