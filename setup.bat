@@ -130,38 +130,57 @@ if "%gpu_choice%"=="1" (
     )
     echo   [OK] PyTorch (CUDA 12.1) installed
 ) else if "%gpu_choice%"=="2" (
+    echo.
+    echo ==========================================
+    echo OPTION 2 SELECTED - CUDA 12.8
+    echo ==========================================
+    echo.
     echo Installing PyTorch with CUDA 12.8...
-    echo Running: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+    echo Command: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
     echo.
-    call pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
-    set TORCH_EXIT_CODE=%ERRORLEVEL%
+    echo Starting installation... Please wait...
     echo.
-    echo Installation exit code: %TORCH_EXIT_CODE%
-    if %TORCH_EXIT_CODE% NEQ 0 (
+
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+
+    echo.
+    echo.
+    echo Checking installation result...
+
+    if errorlevel 1 (
         echo.
-        echo ERROR: Failed to install PyTorch (exit code: %TORCH_EXIT_CODE%)
+        echo ==========================================
+        echo ERROR: PyTorch Installation Failed
+        echo ==========================================
         echo.
-        echo This might be due to CUDA 12.8 compatibility issues.
-        echo Please check that your GPU drivers are up to date.
+        echo The CUDA 12.8 installation did not complete successfully.
         echo.
-        echo Suggestion: Run setup.bat again and choose option 1 (CUDA 12.1) instead.
-        echo CUDA 12.1 works perfectly with all GPUs including RTX 50-series.
+        echo RECOMMENDATION: Press any key to close this window, then run
+        echo setup.bat again and choose option 1 instead.
+        echo.
+        echo CUDA 12.1 works perfectly with ALL GPUs including RTX 50-series.
+        echo You do not need CUDA 12.8 for RTX 50-series cards.
         echo.
         pause
         exit /b 1
     )
-    echo   [OK] PyTorch (CUDA 12.8) installed
+
+    echo.
+    echo [OK] PyTorch (CUDA 12.8) installed successfully
     echo.
     echo Updating bitsandbytes for RTX 50-series support...
-    call pip install -U bitsandbytes
+
+    pip install -U bitsandbytes
+
     if errorlevel 1 (
         echo.
         echo WARNING: Failed to update bitsandbytes
-        echo This might cause issues with RTX 50-series GPUs, but you can continue.
+        echo This might cause issues, but you can continue.
         echo.
     ) else (
-        echo   [OK] bitsandbytes updated
+        echo [OK] bitsandbytes updated
     )
+    echo.
 ) else (
     echo Invalid choice. Defaulting to CUDA 12.1...
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
