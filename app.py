@@ -21,6 +21,7 @@ from argparse import Namespace
 import train_network
 import toml
 import re
+from core import huggingface as hf_module
 MAX_IMAGES = 150
 
 with open('models.yaml', 'r') as file:
@@ -111,64 +112,6 @@ Weights for this model are available in Safetensors format.
 """
     return readme_content
 
-def account_hf():
-    try:
-        with open("HF_TOKEN", "r") as file:
-            token = file.read()
-            api = HfApi(token=token)
-            try:
-                account = api.whoami()
-                return { "token": token, "account": account['name'] }
-            except:
-                return None
-    except:
-        return None
-
-"""
-hf_logout.click(fn=logout_hf, outputs=[hf_token, hf_login, hf_logout, repo_owner])
-"""
-def logout_hf():
-    os.remove("HF_TOKEN")
-    global current_account
-    current_account = account_hf()
-    print(f"current_account={current_account}")
-    return gr.update(value=""), gr.update(visible=True), gr.update(visible=False), gr.update(value="", visible=False)
-
-
-"""
-hf_login.click(fn=login_hf, inputs=[hf_token], outputs=[hf_token, hf_login, hf_logout, repo_owner])
-"""
-def login_hf(hf_token):
-    api = HfApi(token=hf_token)
-    try:
-        account = api.whoami()
-        if account != None:
-            if "name" in account:
-                with open("HF_TOKEN", "w") as file:
-                    file.write(hf_token)
-                global current_account
-                current_account = account_hf()
-                return gr.update(visible=True), gr.update(visible=False), gr.update(visible=True), gr.update(value=current_account["account"], visible=True)
-        return gr.update(), gr.update(), gr.update(), gr.update()
-    except:
-        print(f"incorrect hf_token")
-        return gr.update(), gr.update(), gr.update(), gr.update()
-
-def upload_hf(base_model, lora_rows, repo_owner, repo_name, repo_visibility, hf_token):
-    src = lora_rows
-    repo_id = f"{repo_owner}/{repo_name}"
-    gr.Info(f"Uploading to Huggingface. Please Stand by...", duration=None)
-    args = Namespace(
-        huggingface_repo_id=repo_id,
-        huggingface_repo_type="model",
-        huggingface_repo_visibility=repo_visibility,
-        huggingface_path_in_repo="",
-        huggingface_token=hf_token,
-        async_upload=False
-    )
-    print(f"upload_hf args={args}")
-    huggingface_util.upload(args=args, src=src)
-    gr.Info(f"[Upload Complete] https://huggingface.co/{repo_id}", duration=None)
 
 def load_captioning(uploaded_files, concept_sentence):
     uploaded_images = [file for file in uploaded_files if not file.endswith('.txt')]
@@ -685,17 +628,6 @@ def update(
     )
     return gr.update(value=sh), gr.update(value=toml), dataset_folder
 
-"""
-demo.load(fn=loaded, js=js, outputs=[hf_token, hf_login, hf_logout, hf_account])
-"""
-def loaded():
-    global current_account
-    current_account = account_hf()
-    print(f"current_account={current_account}")
-    if current_account != None:
-        return gr.update(value=current_account["token"]), gr.update(visible=False), gr.update(visible=True), gr.update(value=current_account["account"], visible=True)
-    else:
-        return gr.update(value=""), gr.update(visible=True), gr.update(visible=False), gr.update(value="", visible=False)
 
 def update_sample(concept_sentence):
     return gr.update(value=concept_sentence)
@@ -887,9 +819,6 @@ function() {
 }
 """
 
-current_account = account_hf()
-print(f"current_account={current_account}")
-
 with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
     with gr.Tabs() as tabs:
         with gr.TabItem("Gym"):
@@ -1020,7 +949,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                     repo_visibility = gr.Textbox(label="Repository Visibility ('public' or 'private')", value="public")
                     upload_button = gr.Button("Upload to HuggingFace")
                     upload_button.click(
-                        fn=upload_hf,
+                        fn=hf_module.upload_hf,
                         inputs=[
                             base_model,
                             lora_rows,
@@ -1030,8 +959,8 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                             hf_token,
                         ]
                     )
-            hf_login.click(fn=login_hf, inputs=[hf_token], outputs=[hf_token, hf_login, hf_logout, repo_owner])
-            hf_logout.click(fn=logout_hf, outputs=[hf_token, hf_login, hf_logout, repo_owner])
+            hf_login.click(fn=hf_module.login_hf, inputs=[hf_token], outputs=[hf_token, hf_login, hf_logout, repo_owner])
+            hf_logout.click(fn=hf_module.logout_hf, outputs=[hf_token, hf_login, hf_logout, repo_owner])
 
 
     publish_tab.select(refresh_publish_tab, outputs=lora_rows)
@@ -1112,7 +1041,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
         outputs=terminal,
     )
     do_captioning.click(fn=run_captioning, inputs=[images, concept_sentence] + caption_list, outputs=caption_list)
-    demo.load(fn=loaded, js=js, outputs=[hf_token, hf_login, hf_logout, repo_owner])
+    demo.load(fn=hf_module.loaded, js=js, outputs=[hf_token, hf_login, hf_logout, repo_owner])
     refresh.click(update, inputs=listeners, outputs=[train_script, train_config, dataset_folder])
 if __name__ == "__main__":
     cwd = os.path.dirname(os.path.abspath(__file__))
