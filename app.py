@@ -21,7 +21,12 @@ from argparse import Namespace
 import train_network
 import toml
 import re
+
+# Import refactored modules
 from core import huggingface as hf_module
+from core import samples as samples_module
+from utils.file_utils import resolve_path, resolve_path_without_quotes
+
 MAX_IMAGES = 150
 
 with open('models.yaml', 'r') as file:
@@ -112,7 +117,6 @@ Weights for this model are available in Safetensors format.
 """
     return readme_content
 
-
 def load_captioning(uploaded_files, concept_sentence):
     uploaded_images = [file for file in uploaded_files if not file.endswith('.txt')]
     txt_files = [file for file in uploaded_files if file.endswith('.txt')]
@@ -143,7 +147,7 @@ def load_captioning(uploaded_files, concept_sentence):
         if(image_value):
             base_name = os.path.splitext(os.path.basename(image_value))[0]
             if base_name in txt_files_dict:
-                with open(txt_files_dict[base_name], 'r') as file:
+                with open(txt_files_dict[base_name], 'r', encoding='utf-8') as file:
                     corresponding_caption = file.read()
 
         # Update value of captioning area
@@ -203,7 +207,7 @@ def create_dataset(destination_folder, size, *inputs):
             print(f"{caption_path} already exists. use the existing .txt file")
         else:
             print(f"{caption_path} create a .txt caption file")
-            with open(caption_path, 'w') as file:
+            with open(caption_path, 'w', encoding='utf-8') as file:
                 file.write(original_caption)
 
     print(f"destination_folder {destination_folder}")
@@ -308,14 +312,7 @@ def download(base_model):
         hf_hub_download(repo_id="comfyanonymous/flux_text_encoders", local_dir=clip_folder, filename="t5xxl_fp16.safetensors")
 
 
-def resolve_path(p):
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    norm_path = os.path.normpath(os.path.join(current_dir, p))
-    return f"\"{norm_path}\""
-def resolve_path_without_quotes(p):
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    norm_path = os.path.normpath(os.path.join(current_dir, p))
-    return norm_path
+# Path resolution functions now imported from utils.file_utils
 
 def gen_sh(
     base_model,
@@ -478,7 +475,9 @@ keep_tokens = 1
 
 def update_total_steps(max_train_epochs, num_repeats, images):
     try:
-        num_images = len(images)
+        # Filter out non-image files (like .txt caption files)
+        image_files = [img for img in images if not img.endswith('.txt')] if images else []
+        num_images = len(image_files)
         total_steps = max_train_epochs * num_images * num_repeats
         print(f"max_train_epochs={max_train_epochs} num_images={num_images}, num_repeats={num_repeats}, total_steps={total_steps}")
         return gr.update(value = total_steps)
@@ -499,15 +498,12 @@ def get_loras():
     except Exception as e:
         return []
 
-def get_samples(lora_name):
-    output_name = slugify(lora_name)
-    try:
-        samples_path = resolve_path_without_quotes(f"outputs/{output_name}/sample")
-        files = [os.path.join(samples_path, file) for file in os.listdir(samples_path)]
-        files.sort(key=lambda file: os.path.getctime(file), reverse=True)
-        return files
-    except:
-        return []
+# Sample gallery functions - using refactored module
+get_samples = samples_module.get_samples
+get_total_samples_count = samples_module.get_total_samples_count
+load_more_samples = samples_module.load_more_samples
+reset_gallery = samples_module.reset_gallery
+update_gallery_display = samples_module.update_gallery_display
 
 def start_training(
     base_model,
@@ -627,7 +623,6 @@ def update(
         num_repeats
     )
     return gr.update(value=sh), gr.update(value=toml), dataset_folder
-
 
 def update_sample(concept_sentence):
     return gr.update(value=concept_sentence)
@@ -930,7 +925,19 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
             with gr.Row():
                 terminal = LogsView(label="Train log", elem_id="terminal")
             with gr.Row():
-                gallery = gr.Gallery(get_samples, inputs=[lora_name], label="Samples", every=10, columns=6)
+                with gr.Column():
+                    gr.Markdown("### Sample Gallery")
+                    gallery_page = gr.State(value=1)
+                    with gr.Row():
+                        samples_info = gr.Markdown("Showing 0 of 0 samples")
+                        reset_gallery_btn = gr.Button("Reset to Latest", size="sm", scale=0)
+                    gallery = gr.Gallery(
+                        label="Samples",
+                        columns=6,
+                        height="auto"
+                    )
+                    with gr.Row():
+                        load_more_btn = gr.Button("Load More Samples", size="lg")
 
         with gr.TabItem("Publish") as publish_tab:
             hf_token = gr.Textbox(label="Huggingface Token")
@@ -962,6 +969,33 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
             hf_login.click(fn=hf_module.login_hf, inputs=[hf_token], outputs=[hf_token, hf_login, hf_logout, repo_owner])
             hf_logout.click(fn=hf_module.logout_hf, outputs=[hf_token, hf_login, hf_logout, repo_owner])
 
+    # Gallery pagination event handlers
+    load_more_btn.click(
+        fn=load_more_samples,
+        inputs=[lora_name, gallery_page],
+        outputs=[gallery, gallery_page, samples_info]
+    )
+
+    reset_gallery_btn.click(
+        fn=reset_gallery,
+        inputs=[lora_name],
+        outputs=[gallery, gallery_page, samples_info]
+    )
+
+    # Update gallery when lora_name changes
+    lora_name.change(
+        fn=reset_gallery,
+        inputs=[lora_name],
+        outputs=[gallery, gallery_page, samples_info]
+    )
+
+    # Periodic refresh of gallery (every 30 seconds) - respects current pagination
+    demo.load(
+        fn=update_gallery_display,
+        inputs=[lora_name, gallery_page],
+        outputs=[gallery, samples_info],
+        every=30
+    )
 
     publish_tab.select(refresh_publish_tab, outputs=lora_rows)
     lora_rows.select(fn=set_repo, inputs=[lora_rows], outputs=[repo_name])

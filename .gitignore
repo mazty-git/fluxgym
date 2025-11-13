@@ -4,13 +4,39 @@ __pycache__/
 *$py.class
 *.so
 .Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Virtual environments
-env/
+# Virtual Environment
 venv/
 ENV/
+env/
 env.bak/
 venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
 
 # HuggingFace token
 HF_TOKEN
@@ -19,8 +45,10 @@ HF_TOKEN
 outputs/
 datasets/
 
-# Models
-models/unet/*
-models/vae/*
-models/clip/*
+# Project specific - Models
+models/
+# But keep the .gitkeep files
 !models/.gitkeep
+!models/clip/.gitkeep
+!models/unet/.gitkeep
+!models/vae/.gitkeep
