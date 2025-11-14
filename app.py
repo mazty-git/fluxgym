@@ -141,7 +141,7 @@ def run_captioning(images, concept_sentence, *captions):
     print(f"device={device}")
     torch_dtype = torch.float16
     model = AutoModelForCausalLM.from_pretrained(
-        "microsoft/Florence-2-base", torch_dtype=torch_dtype, trust_remote_code=True
+        "microsoft/Florence-2-base", torch_dtype=torch_dtype, trust_remote_code=True, attn_implementation="eager"
     ).to(device)
     processor = AutoProcessor.from_pretrained("microsoft/Florence-2-base", trust_remote_code=True)
 
@@ -428,6 +428,7 @@ nav img.rotate { animation: rotate 2s linear infinite; }
 .codemirror-wrapper .cm-line { font-size: 12px !important; }
 label { font-weight: bold !important; }
 #start_training.clicked { background: silver; color: black; }
+#captioning_scroll_box { max-height: 500px; overflow-y: auto; overflow-x: hidden; padding-right: 10px; }
 """
 
 js = """
@@ -537,28 +538,29 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                         output_components.append(captioning_area)
                         #output_components = [captioning_area]
                         caption_list = []
-                        for i in range(1, MAX_IMAGES + 1):
-                            locals()[f"captioning_row_{i}"] = gr.Row(visible=False)
-                            with locals()[f"captioning_row_{i}"]:
-                                locals()[f"image_{i}"] = gr.Image(
-                                    type="filepath",
-                                    width=111,
-                                    height=111,
-                                    min_width=111,
-                                    interactive=False,
-                                    scale=2,
-                                    show_label=False,
-                                    show_share_button=False,
-                                    show_download_button=False,
-                                )
-                                locals()[f"caption_{i}"] = gr.Textbox(
-                                    label=f"Caption {i}", scale=15, interactive=True
-                                )
+                        with gr.Column(elem_id="captioning_scroll_box"):
+                            for i in range(1, MAX_IMAGES + 1):
+                                locals()[f"captioning_row_{i}"] = gr.Row(visible=False)
+                                with locals()[f"captioning_row_{i}"]:
+                                    locals()[f"image_{i}"] = gr.Image(
+                                        type="filepath",
+                                        width=111,
+                                        height=111,
+                                        min_width=111,
+                                        interactive=False,
+                                        scale=2,
+                                        show_label=False,
+                                        show_share_button=False,
+                                        show_download_button=False,
+                                    )
+                                    locals()[f"caption_{i}"] = gr.Textbox(
+                                        label=f"Caption {i}", scale=15, interactive=True
+                                    )
 
-                            output_components.append(locals()[f"captioning_row_{i}"])
-                            output_components.append(locals()[f"image_{i}"])
-                            output_components.append(locals()[f"caption_{i}"])
-                            caption_list.append(locals()[f"caption_{i}"])
+                                output_components.append(locals()[f"captioning_row_{i}"])
+                                output_components.append(locals()[f"image_{i}"])
+                                output_components.append(locals()[f"caption_{i}"])
+                                caption_list.append(locals()[f"caption_{i}"])
                 with gr.Column():
                     gr.Markdown(
                         """# Step 3. Train
