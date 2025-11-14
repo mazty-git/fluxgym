@@ -156,7 +156,7 @@ def run_captioning(images, concept_sentence, *captions):
         print(f"inputs {inputs}")
 
         generated_ids = model.generate(
-            input_ids=inputs["input_ids"], pixel_values=inputs["pixel_values"], max_new_tokens=1024, num_beams=3
+            input_ids=inputs["input_ids"], pixel_values=inputs["pixel_values"], max_new_tokens=1024, do_sample=False
         )
         print(f"generated_ids {generated_ids}")
 
