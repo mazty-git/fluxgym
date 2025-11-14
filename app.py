@@ -28,6 +28,7 @@ from core import samples as samples_module
 from utils.file_utils import resolve_path, resolve_path_without_quotes
 from utils.readme import generate_readme
 from config.generator import generate_training_script, generate_dataset_config
+from ui.advanced import initialize_advanced_components
 
 MAX_IMAGES = 150
 
@@ -392,104 +393,6 @@ def refresh_publish_tab():
     loras = get_loras()
     return gr.Dropdown(label="Trained LoRAs", choices=loras)
 
-def init_advanced():
-    # if basic_args
-    basic_args = {
-        'pretrained_model_name_or_path',
-        'clip_l',
-        't5xxl',
-        'ae',
-        'cache_latents_to_disk',
-        'save_model_as',
-        'sdpa',
-        'persistent_data_loader_workers',
-        'max_data_loader_n_workers',
-        'seed',
-        'gradient_checkpointing',
-        'mixed_precision',
-        'save_precision',
-        'network_module',
-        'network_dim',
-        'learning_rate',
-        'cache_text_encoder_outputs',
-        'cache_text_encoder_outputs_to_disk',
-        'fp8_base',
-        'highvram',
-        'max_train_epochs',
-        'save_every_n_epochs',
-        'dataset_config',
-        'output_dir',
-        'output_name',
-        'timestep_sampling',
-        'discrete_flow_shift',
-        'model_prediction_type',
-        'guidance_scale',
-        'loss_type',
-        'optimizer_type',
-        'optimizer_args',
-        'lr_scheduler',
-        'sample_prompts',
-        'sample_every_n_steps',
-        'max_grad_norm',
-        'split_mode',
-        'network_args'
-    }
-
-    # generate a UI config
-    # if not in basic_args, create a simple form
-    parser = train_network.setup_parser()
-    flux_train_utils.add_flux_train_arguments(parser)
-    args_info = {}
-    for action in parser._actions:
-        if action.dest != 'help':  # Skip the default help argument
-            # if the dest is included in basic_args
-            args_info[action.dest] = {
-                "action": action.option_strings,  # Option strings like '--use_8bit_adam'
-                "type": action.type,              # Type of the argument
-                "help": action.help,              # Help message
-                "default": action.default,        # Default value, if any
-                "required": action.required       # Whether the argument is required
-            }
-    temp = []
-    for key in args_info:
-        temp.append({ 'key': key, 'action': args_info[key] })
-    temp.sort(key=lambda x: x['key'])
-    advanced_component_ids = []
-    advanced_components = []
-    for item in temp:
-        key = item['key']
-        action = item['action']
-        if key in basic_args:
-            print("")
-        else:
-            action_type = str(action['type'])
-            component = None
-            with gr.Column(min_width=300):
-                if action_type == "None":
-                    # radio
-                    component = gr.Checkbox()
-    #            elif action_type == "<class 'str'>":
-    #                component = gr.Textbox()
-    #            elif action_type == "<class 'int'>":
-    #                component = gr.Number(precision=0)
-    #            elif action_type == "<class 'float'>":
-    #                component = gr.Number()
-    #            elif "int_or_float" in action_type:
-    #                component = gr.Number()
-                else:
-                    component = gr.Textbox(value="")
-                if component != None:
-                    component.interactive = True
-                    component.elem_id = action['action'][0]
-                    component.label = component.elem_id
-                    component.elem_classes = ["advanced"]
-                if action['help'] != None:
-                    component.info = action['help']
-            advanced_components.append(component)
-            advanced_component_ids.append(component.elem_id)
-    return advanced_components, advanced_component_ids
-
-
 theme = gr.themes.Monochrome(
     text_size=gr.themes.Size(lg="18px", md="15px", sm="13px", xl="22px", xs="12px", xxl="24px", xxs="9px"),
     font=[gr.themes.GoogleFont("Source Sans Pro"), "ui-sans-serif", "system-ui", "sans-serif"],
@@ -682,7 +585,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                         timestep_sampling = gr.Textbox(label="--timestep_sampling", info="Timestep Sampling", value="shift", interactive=True)
                     with gr.Column(min_width=300):
                         network_dim = gr.Number(label="--network_dim", info="LoRA Rank", value=4, minimum=4, maximum=128, step=4, interactive=True)
-                    advanced_components, advanced_component_ids = init_advanced()
+                    advanced_components, advanced_component_ids = initialize_advanced_components()
             with gr.Row():
                 terminal = LogsView(label="Train log", elem_id="terminal")
             with gr.Row():
