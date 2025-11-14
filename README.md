@@ -63,11 +63,43 @@ You can automatically install and launch everything locally with Pinokio 1-click
 
 ## 2. Install Manually
 
-First clone Fluxgym and kohya-ss/sd-scripts:
+### Option A: Automated Setup (Recommended)
 
-```
+Clone Fluxgym and run the setup script:
+
+```bash
 git clone https://github.com/cocktailpeanut/fluxgym
 cd fluxgym
+```
+
+**Linux/Mac:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+**Windows:**
+```cmd
+setup.bat
+```
+
+The script will automatically:
+- Check for Git and Python
+- Clone sd-scripts repository (if not already present)
+- Create a virtual environment
+- Install all dependencies (fluxgym + sd-scripts)
+- Prompt you to select your GPU type (CUDA 12.1 or 12.8)
+- Install the appropriate PyTorch version
+
+After the script completes, skip to the [Start](#start) section.
+
+### Option B: Manual Setup
+
+If you prefer to install manually, follow these steps:
+
+First, clone the sd-scripts repository:
+
+```bash
 git clone -b sd3 https://github.com/kohya-ss/sd-scripts
 ```
 

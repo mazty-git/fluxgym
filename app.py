@@ -21,154 +21,19 @@ from argparse import Namespace
 import train_network
 import toml
 import re
+
+# Import refactored modules
+from core import huggingface as hf_module
+from core import samples as samples_module
+from utils.file_utils import resolve_path, resolve_path_without_quotes
+from utils.readme import generate_readme
+from config.generator import generate_training_script, generate_dataset_config
+from ui.advanced import initialize_advanced_components
+
 MAX_IMAGES = 150
 
 with open('models.yaml', 'r') as file:
     models = yaml.safe_load(file)
-
-def readme(base_model, lora_name, instance_prompt, sample_prompts):
-
-    # model license
-    model_config = models[base_model]
-    model_file = model_config["file"]
-    base_model_name = model_config["base"]
-    license = None
-    license_name = None
-    license_link = None
-    license_items = []
-    if "license" in model_config:
-        license = model_config["license"]
-        license_items.append(f"license: {license}")
-    if "license_name" in model_config:
-        license_name = model_config["license_name"]
-        license_items.append(f"license_name: {license_name}")
-    if "license_link" in model_config:
-        license_link = model_config["license_link"]
-        license_items.append(f"license_link: {license_link}")
-    license_str = "\n".join(license_items)
-    print(f"license_items={license_items}")
-    print(f"license_str = {license_str}")
-
-    # tags
-    tags = [ "text-to-image", "flux", "lora", "diffusers", "template:sd-lora", "fluxgym" ]
-
-    # widgets
-    widgets = []
-    sample_image_paths = []
-    output_name = slugify(lora_name)
-    samples_dir = resolve_path_without_quotes(f"outputs/{output_name}/sample")
-    try:
-        for filename in os.listdir(samples_dir):
-            # Filename Schema: [name]_[steps]_[index]_[timestamp].png
-            match = re.search(r"_(\d+)_(\d+)_(\d+)\.png$", filename)
-            if match:
-                steps, index, timestamp = int(match.group(1)), int(match.group(2)), int(match.group(3))
-                sample_image_paths.append((steps, index, f"sample/{filename}"))
-
-        # Sort by numeric index
-        sample_image_paths.sort(key=lambda x: x[0], reverse=True)
-
-        final_sample_image_paths = sample_image_paths[:len(sample_prompts)]
-        final_sample_image_paths.sort(key=lambda x: x[1])
-        for i, prompt in enumerate(sample_prompts):
-            _, _, image_path = final_sample_image_paths[i]
-            widgets.append(
-                {
-                    "text": prompt,
-                    "output": {
-                        "url": image_path
-                    },
-                }
-            )
-    except:
-        print(f"no samples")
-    dtype = "torch.bfloat16"
-    # Construct the README content
-    readme_content = f"""---
-tags:
-{yaml.dump(tags, indent=4).strip()}
-{"widget:" if os.path.isdir(samples_dir) else ""}
-{yaml.dump(widgets, indent=4).strip() if widgets else ""}
-base_model: {base_model_name}
-{"instance_prompt: " + instance_prompt if instance_prompt else ""}
-{license_str}
----
-
-# {lora_name}
-
-A Flux LoRA trained on a local computer with [Fluxgym](https://github.com/cocktailpeanut/fluxgym)
-
-<Gallery />
-
-## Trigger words
-
-{"You should use `" + instance_prompt + "` to trigger the image generation." if instance_prompt else "No trigger words defined."}
-
-## Download model and use it with ComfyUI, AUTOMATIC1111, SD.Next, Invoke AI, Forge, etc.
-
-Weights for this model are available in Safetensors format.
-
-"""
-    return readme_content
-
-def account_hf():
-    try:
-        with open("HF_TOKEN", "r") as file:
-            token = file.read()
-            api = HfApi(token=token)
-            try:
-                account = api.whoami()
-                return { "token": token, "account": account['name'] }
-            except:
-                return None
-    except:
-        return None
-
-"""
-hf_logout.click(fn=logout_hf, outputs=[hf_token, hf_login, hf_logout, repo_owner])
-"""
-def logout_hf():
-    os.remove("HF_TOKEN")
-    global current_account
-    current_account = account_hf()
-    print(f"current_account={current_account}")
-    return gr.update(value=""), gr.update(visible=True), gr.update(visible=False), gr.update(value="", visible=False)
-
-
-"""
-hf_login.click(fn=login_hf, inputs=[hf_token], outputs=[hf_token, hf_login, hf_logout, repo_owner])
-"""
-def login_hf(hf_token):
-    api = HfApi(token=hf_token)
-    try:
-        account = api.whoami()
-        if account != None:
-            if "name" in account:
-                with open("HF_TOKEN", "w") as file:
-                    file.write(hf_token)
-                global current_account
-                current_account = account_hf()
-                return gr.update(visible=True), gr.update(visible=False), gr.update(visible=True), gr.update(value=current_account["account"], visible=True)
-        return gr.update(), gr.update(), gr.update(), gr.update()
-    except:
-        print(f"incorrect hf_token")
-        return gr.update(), gr.update(), gr.update(), gr.update()
-
-def upload_hf(base_model, lora_rows, repo_owner, repo_name, repo_visibility, hf_token):
-    src = lora_rows
-    repo_id = f"{repo_owner}/{repo_name}"
-    gr.Info(f"Uploading to Huggingface. Please Stand by...", duration=None)
-    args = Namespace(
-        huggingface_repo_id=repo_id,
-        huggingface_repo_type="model",
-        huggingface_repo_visibility=repo_visibility,
-        huggingface_path_in_repo="",
-        huggingface_token=hf_token,
-        async_upload=False
-    )
-    print(f"upload_hf args={args}")
-    huggingface_util.upload(args=args, src=src)
-    gr.Info(f"[Upload Complete] https://huggingface.co/{repo_id}", duration=None)
 
 def load_captioning(uploaded_files, concept_sentence):
     uploaded_images = [file for file in uploaded_files if not file.endswith('.txt')]
@@ -200,7 +65,7 @@ def load_captioning(uploaded_files, concept_sentence):
         if(image_value):
             base_name = os.path.splitext(os.path.basename(image_value))[0]
             if base_name in txt_files_dict:
-                with open(txt_files_dict[base_name], 'r') as file:
+                with open(txt_files_dict[base_name], 'r', encoding='utf-8') as file:
                     corresponding_caption = file.read()
 
         # Update value of captioning area
@@ -260,7 +125,7 @@ def create_dataset(destination_folder, size, *inputs):
             print(f"{caption_path} already exists. use the existing .txt file")
         else:
             print(f"{caption_path} create a .txt caption file")
-            with open(caption_path, 'w') as file:
+            with open(caption_path, 'w', encoding='utf-8') as file:
                 file.write(original_caption)
 
     print(f"destination_folder {destination_folder}")
@@ -365,177 +230,13 @@ def download(base_model):
         hf_hub_download(repo_id="comfyanonymous/flux_text_encoders", local_dir=clip_folder, filename="t5xxl_fp16.safetensors")
 
 
-def resolve_path(p):
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    norm_path = os.path.normpath(os.path.join(current_dir, p))
-    return f"\"{norm_path}\""
-def resolve_path_without_quotes(p):
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    norm_path = os.path.normpath(os.path.join(current_dir, p))
-    return norm_path
-
-def gen_sh(
-    base_model,
-    output_name,
-    resolution,
-    seed,
-    workers,
-    learning_rate,
-    network_dim,
-    max_train_epochs,
-    save_every_n_epochs,
-    timestep_sampling,
-    guidance_scale,
-    vram,
-    sample_prompts,
-    sample_every_n_steps,
-    *advanced_components
-):
-
-    print(f"gen_sh: network_dim:{network_dim}, max_train_epochs={max_train_epochs}, save_every_n_epochs={save_every_n_epochs}, timestep_sampling={timestep_sampling}, guidance_scale={guidance_scale}, vram={vram}, sample_prompts={sample_prompts}, sample_every_n_steps={sample_every_n_steps}")
-
-    output_dir = resolve_path(f"outputs/{output_name}")
-    sample_prompts_path = resolve_path(f"outputs/{output_name}/sample_prompts.txt")
-
-    line_break = "\\"
-    file_type = "sh"
-    if sys.platform == "win32":
-        line_break = "^"
-        file_type = "bat"
-
-    ############# Sample args ########################
-    sample = ""
-    if len(sample_prompts) > 0 and sample_every_n_steps > 0:
-        sample = f"""--sample_prompts={sample_prompts_path} --sample_every_n_steps="{sample_every_n_steps}" {line_break}"""
-
-
-    ############# Optimizer args ########################
-#    if vram == "8G":
-#        optimizer = f"""--optimizer_type adafactor {line_break}
-#    --optimizer_args "relative_step=False" "scale_parameter=False" "warmup_init=False" {line_break}
-#        --split_mode {line_break}
-#        --network_args "train_blocks=single" {line_break}
-#        --lr_scheduler constant_with_warmup {line_break}
-#        --max_grad_norm 0.0 {line_break}"""
-    if vram == "16G":
-        # 16G VRAM
-        optimizer = f"""--optimizer_type adafactor {line_break}
-  --optimizer_args "relative_step=False" "scale_parameter=False" "warmup_init=False" {line_break}
-  --lr_scheduler constant_with_warmup {line_break}
-  --max_grad_norm 0.0 {line_break}"""
-    elif vram == "12G":
-      # 12G VRAM
-        optimizer = f"""--optimizer_type adafactor {line_break}
-  --optimizer_args "relative_step=False" "scale_parameter=False" "warmup_init=False" {line_break}
-  --split_mode {line_break}
-  --network_args "train_blocks=single" {line_break}
-  --lr_scheduler constant_with_warmup {line_break}
-  --max_grad_norm 0.0 {line_break}"""
-    else:
-        # 20G+ VRAM
-        optimizer = f"--optimizer_type adamw8bit {line_break}"
-
-
-    #######################################################
-    model_config = models[base_model]
-    model_file = model_config["file"]
-    repo = model_config["repo"]
-    if base_model == "flux-dev" or base_model == "flux-schnell":
-        model_folder = "models/unet"
-    else:
-        model_folder = f"models/unet/{repo}"
-    model_path = os.path.join(model_folder, model_file)
-    pretrained_model_path = resolve_path(model_path)
-
-    clip_path = resolve_path("models/clip/clip_l.safetensors")
-    t5_path = resolve_path("models/clip/t5xxl_fp16.safetensors")
-    ae_path = resolve_path("models/vae/ae.sft")
-    sh = f"""accelerate launch {line_break}
-  --mixed_precision bf16 {line_break}
-  --num_cpu_threads_per_process 1 {line_break}
-  sd-scripts/flux_train_network.py {line_break}
-  --pretrained_model_name_or_path {pretrained_model_path} {line_break}
-  --clip_l {clip_path} {line_break}
-  --t5xxl {t5_path} {line_break}
-  --ae {ae_path} {line_break}
-  --cache_latents_to_disk {line_break}
-  --save_model_as safetensors {line_break}
-  --sdpa --persistent_data_loader_workers {line_break}
-  --max_data_loader_n_workers {workers} {line_break}
-  --seed {seed} {line_break}
-  --gradient_checkpointing {line_break}
-  --mixed_precision bf16 {line_break}
-  --save_precision bf16 {line_break}
-  --network_module networks.lora_flux {line_break}
-  --network_dim {network_dim} {line_break}
-  {optimizer}{sample}
-  --learning_rate {learning_rate} {line_break}
-  --cache_text_encoder_outputs {line_break}
-  --cache_text_encoder_outputs_to_disk {line_break}
-  --fp8_base {line_break}
-  --highvram {line_break}
-  --max_train_epochs {max_train_epochs} {line_break}
-  --save_every_n_epochs {save_every_n_epochs} {line_break}
-  --dataset_config {resolve_path(f"outputs/{output_name}/dataset.toml")} {line_break}
-  --output_dir {output_dir} {line_break}
-  --output_name {output_name} {line_break}
-  --timestep_sampling {timestep_sampling} {line_break}
-  --discrete_flow_shift 3.1582 {line_break}
-  --model_prediction_type raw {line_break}
-  --guidance_scale {guidance_scale} {line_break}
-  --loss_type l2 {line_break}"""
-   
-
-
-    ############# Advanced args ########################
-    global advanced_component_ids
-    global original_advanced_component_values
-   
-    # check dirty
-    print(f"original_advanced_component_values = {original_advanced_component_values}")
-    advanced_flags = []
-    for i, current_value in enumerate(advanced_components):
-#        print(f"compare {advanced_component_ids[i]}: old={original_advanced_component_values[i]}, new={current_value}")
-        if original_advanced_component_values[i] != current_value:
-            # dirty
-            if current_value == True:
-                # Boolean
-                advanced_flags.append(advanced_component_ids[i])
-            else:
-                # string
-                advanced_flags.append(f"{advanced_component_ids[i]} {current_value}")
-
-    if len(advanced_flags) > 0:
-        advanced_flags_str = f" {line_break}\n  ".join(advanced_flags)
-        sh = sh + "\n  " + advanced_flags_str
-
-    return sh
-
-def gen_toml(
-  dataset_folder,
-  resolution,
-  class_tokens,
-  num_repeats
-):
-    toml = f"""[general]
-shuffle_caption = false
-caption_extension = '.txt'
-keep_tokens = 1
-
-[[datasets]]
-resolution = {resolution}
-batch_size = 1
-keep_tokens = 1
-
-  [[datasets.subsets]]
-  image_dir = '{resolve_path_without_quotes(dataset_folder)}'
-  class_tokens = '{class_tokens}'
-  num_repeats = {num_repeats}"""
-    return toml
+# Path resolution functions now imported from utils.file_utils
 
 def update_total_steps(max_train_epochs, num_repeats, images):
     try:
-        num_images = len(images)
+        # Filter out non-image files (like .txt caption files)
+        image_files = [img for img in images if not img.endswith('.txt')] if images else []
+        num_images = len(image_files)
         total_steps = max_train_epochs * num_images * num_repeats
         print(f"max_train_epochs={max_train_epochs} num_images={num_images}, num_repeats={num_repeats}, total_steps={total_steps}")
         return gr.update(value = total_steps)
@@ -556,15 +257,12 @@ def get_loras():
     except Exception as e:
         return []
 
-def get_samples(lora_name):
-    output_name = slugify(lora_name)
-    try:
-        samples_path = resolve_path_without_quotes(f"outputs/{output_name}/sample")
-        files = [os.path.join(samples_path, file) for file in os.listdir(samples_path)]
-        files.sort(key=lambda file: os.path.getctime(file), reverse=True)
-        return files
-    except:
-        return []
+# Sample gallery functions - using refactored module
+get_samples = samples_module.get_samples
+get_total_samples_count = samples_module.get_total_samples_count
+load_more_samples = samples_module.load_more_samples
+reset_gallery = samples_module.reset_gallery
+update_gallery_display = samples_module.update_gallery_display
 
 def start_training(
     base_model,
@@ -631,7 +329,7 @@ def start_training(
     with open(sample_prompts_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
     sample_prompts = [line.strip() for line in lines if len(line.strip()) > 0 and line[0] != "#"]
-    md = readme(base_model, lora_name, concept_sentence, sample_prompts)
+    md = generate_readme(base_model, lora_name, concept_sentence, sample_prompts, models)
     readme_path = resolve_path_without_quotes(f"outputs/{output_name}/README.md")
     with open(readme_path, "w", encoding="utf-8") as f:
         f.write(md)
@@ -660,7 +358,7 @@ def update(
 ):
     output_name = slugify(lora_name)
     dataset_folder = str(f"datasets/{output_name}")
-    sh = gen_sh(
+    sh = generate_training_script(
         base_model,
         output_name,
         resolution,
@@ -675,9 +373,12 @@ def update(
         vram,
         sample_prompts,
         sample_every_n_steps,
-        *advanced_components,
+        models,
+        advanced_component_ids,
+        original_advanced_component_values,
+        advanced_components,
     )
-    toml = gen_toml(
+    toml = generate_dataset_config(
         dataset_folder,
         resolution,
         class_tokens,
@@ -685,122 +386,12 @@ def update(
     )
     return gr.update(value=sh), gr.update(value=toml), dataset_folder
 
-"""
-demo.load(fn=loaded, js=js, outputs=[hf_token, hf_login, hf_logout, hf_account])
-"""
-def loaded():
-    global current_account
-    current_account = account_hf()
-    print(f"current_account={current_account}")
-    if current_account != None:
-        return gr.update(value=current_account["token"]), gr.update(visible=False), gr.update(visible=True), gr.update(value=current_account["account"], visible=True)
-    else:
-        return gr.update(value=""), gr.update(visible=True), gr.update(visible=False), gr.update(value="", visible=False)
-
 def update_sample(concept_sentence):
     return gr.update(value=concept_sentence)
 
 def refresh_publish_tab():
     loras = get_loras()
     return gr.Dropdown(label="Trained LoRAs", choices=loras)
-
-def init_advanced():
-    # if basic_args
-    basic_args = {
-        'pretrained_model_name_or_path',
-        'clip_l',
-        't5xxl',
-        'ae',
-        'cache_latents_to_disk',
-        'save_model_as',
-        'sdpa',
-        'persistent_data_loader_workers',
-        'max_data_loader_n_workers',
-        'seed',
-        'gradient_checkpointing',
-        'mixed_precision',
-        'save_precision',
-        'network_module',
-        'network_dim',
-        'learning_rate',
-        'cache_text_encoder_outputs',
-        'cache_text_encoder_outputs_to_disk',
-        'fp8_base',
-        'highvram',
-        'max_train_epochs',
-        'save_every_n_epochs',
-        'dataset_config',
-        'output_dir',
-        'output_name',
-        'timestep_sampling',
-        'discrete_flow_shift',
-        'model_prediction_type',
-        'guidance_scale',
-        'loss_type',
-        'optimizer_type',
-        'optimizer_args',
-        'lr_scheduler',
-        'sample_prompts',
-        'sample_every_n_steps',
-        'max_grad_norm',
-        'split_mode',
-        'network_args'
-    }
-
-    # generate a UI config
-    # if not in basic_args, create a simple form
-    parser = train_network.setup_parser()
-    flux_train_utils.add_flux_train_arguments(parser)
-    args_info = {}
-    for action in parser._actions:
-        if action.dest != 'help':  # Skip the default help argument
-            # if the dest is included in basic_args
-            args_info[action.dest] = {
-                "action": action.option_strings,  # Option strings like '--use_8bit_adam'
-                "type": action.type,              # Type of the argument
-                "help": action.help,              # Help message
-                "default": action.default,        # Default value, if any
-                "required": action.required       # Whether the argument is required
-            }
-    temp = []
-    for key in args_info:
-        temp.append({ 'key': key, 'action': args_info[key] })
-    temp.sort(key=lambda x: x['key'])
-    advanced_component_ids = []
-    advanced_components = []
-    for item in temp:
-        key = item['key']
-        action = item['action']
-        if key in basic_args:
-            print("")
-        else:
-            action_type = str(action['type'])
-            component = None
-            with gr.Column(min_width=300):
-                if action_type == "None":
-                    # radio
-                    component = gr.Checkbox()
-    #            elif action_type == "<class 'str'>":
-    #                component = gr.Textbox()
-    #            elif action_type == "<class 'int'>":
-    #                component = gr.Number(precision=0)
-    #            elif action_type == "<class 'float'>":
-    #                component = gr.Number()
-    #            elif "int_or_float" in action_type:
-    #                component = gr.Number()
-                else:
-                    component = gr.Textbox(value="")
-                if component != None:
-                    component.interactive = True
-                    component.elem_id = action['action'][0]
-                    component.label = component.elem_id
-                    component.elem_classes = ["advanced"]
-                if action['help'] != None:
-                    component.info = action['help']
-            advanced_components.append(component)
-            advanced_component_ids.append(component.elem_id)
-    return advanced_components, advanced_component_ids
-
 
 theme = gr.themes.Monochrome(
     text_size=gr.themes.Size(lg="18px", md="15px", sm="13px", xl="22px", xs="12px", xxl="24px", xxs="9px"),
@@ -886,9 +477,6 @@ function() {
 
 }
 """
-
-current_account = account_hf()
-print(f"current_account={current_account}")
 
 with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
     with gr.Tabs() as tabs:
@@ -997,11 +585,23 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                         timestep_sampling = gr.Textbox(label="--timestep_sampling", info="Timestep Sampling", value="shift", interactive=True)
                     with gr.Column(min_width=300):
                         network_dim = gr.Number(label="--network_dim", info="LoRA Rank", value=4, minimum=4, maximum=128, step=4, interactive=True)
-                    advanced_components, advanced_component_ids = init_advanced()
+                    advanced_components, advanced_component_ids = initialize_advanced_components()
             with gr.Row():
                 terminal = LogsView(label="Train log", elem_id="terminal")
             with gr.Row():
-                gallery = gr.Gallery(get_samples, inputs=[lora_name], label="Samples", every=10, columns=6)
+                with gr.Column():
+                    gr.Markdown("### Sample Gallery")
+                    gallery_page = gr.State(value=1)
+                    with gr.Row():
+                        samples_info = gr.Markdown("Showing 0 of 0 samples")
+                        reset_gallery_btn = gr.Button("Reset to Latest", size="sm", scale=0)
+                    gallery = gr.Gallery(
+                        label="Samples",
+                        columns=6,
+                        height="auto"
+                    )
+                    with gr.Row():
+                        load_more_btn = gr.Button("Load More Samples", size="lg")
 
         with gr.TabItem("Publish") as publish_tab:
             hf_token = gr.Textbox(label="Huggingface Token")
@@ -1020,7 +620,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                     repo_visibility = gr.Textbox(label="Repository Visibility ('public' or 'private')", value="public")
                     upload_button = gr.Button("Upload to HuggingFace")
                     upload_button.click(
-                        fn=upload_hf,
+                        fn=hf_module.upload_hf,
                         inputs=[
                             base_model,
                             lora_rows,
@@ -1030,9 +630,36 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                             hf_token,
                         ]
                     )
-            hf_login.click(fn=login_hf, inputs=[hf_token], outputs=[hf_token, hf_login, hf_logout, repo_owner])
-            hf_logout.click(fn=logout_hf, outputs=[hf_token, hf_login, hf_logout, repo_owner])
+            hf_login.click(fn=hf_module.login_hf, inputs=[hf_token], outputs=[hf_token, hf_login, hf_logout, repo_owner])
+            hf_logout.click(fn=hf_module.logout_hf, outputs=[hf_token, hf_login, hf_logout, repo_owner])
 
+    # Gallery pagination event handlers
+    load_more_btn.click(
+        fn=load_more_samples,
+        inputs=[lora_name, gallery_page],
+        outputs=[gallery, gallery_page, samples_info]
+    )
+
+    reset_gallery_btn.click(
+        fn=reset_gallery,
+        inputs=[lora_name],
+        outputs=[gallery, gallery_page, samples_info]
+    )
+
+    # Update gallery when lora_name changes
+    lora_name.change(
+        fn=reset_gallery,
+        inputs=[lora_name],
+        outputs=[gallery, gallery_page, samples_info]
+    )
+
+    # Periodic refresh of gallery (every 30 seconds) - respects current pagination
+    demo.load(
+        fn=update_gallery_display,
+        inputs=[lora_name, gallery_page],
+        outputs=[gallery, samples_info],
+        every=30
+    )
 
     publish_tab.select(refresh_publish_tab, outputs=lora_rows)
     lora_rows.select(fn=set_repo, inputs=[lora_rows], outputs=[repo_name])
@@ -1112,7 +739,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
         outputs=terminal,
     )
     do_captioning.click(fn=run_captioning, inputs=[images, concept_sentence] + caption_list, outputs=caption_list)
-    demo.load(fn=loaded, js=js, outputs=[hf_token, hf_login, hf_logout, repo_owner])
+    demo.load(fn=hf_module.loaded, js=js, outputs=[hf_token, hf_login, hf_logout, repo_owner])
     refresh.click(update, inputs=listeners, outputs=[train_script, train_config, dataset_folder])
 if __name__ == "__main__":
     cwd = os.path.dirname(os.path.abspath(__file__))
