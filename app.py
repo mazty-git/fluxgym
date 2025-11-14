@@ -276,7 +276,7 @@ def run_captioning(images, concept_sentence, *captions):
     print(f"device={device}")
     torch_dtype = torch.float16
     model = AutoModelForCausalLM.from_pretrained(
-        "multimodalart/Florence-2-large-no-flash-attn", torch_dtype=torch_dtype, trust_remote_code=True
+        "multimodalart/Florence-2-large-no-flash-attn", torch_dtype=torch_dtype, trust_remote_code=True, attn_implementation="eager"
     ).to(device)
     processor = AutoProcessor.from_pretrained("multimodalart/Florence-2-large-no-flash-attn", trust_remote_code=True)
 
