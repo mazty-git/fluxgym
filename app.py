@@ -139,7 +139,7 @@ def run_captioning(images, concept_sentence, *captions):
 
     # Initialize Qwen VL image processor
     processor = ImageProcessor()
-    processor.initialize_model_and_processor("Qwen2.5-VL-3B-Instruct")
+    processor.initialize_model_and_processor("Qwen3-VL-2B-Instruct")
 
     captions = list(captions)
     prompt = "Describe this image in detail, focusing on the main subject, setting, and key visual elements."

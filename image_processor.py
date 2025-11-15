@@ -1,27 +1,31 @@
 # image_processor.py
 #
 # A module for processing images using vision-language models.
-# Supports Qwen2.5-VL models for image captioning and analysis.
+# Supports Qwen3-VL models for image captioning and analysis.
 
 import hashlib
 import gc
 import tempfile
 from PIL import Image
 import torch
-from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
-from qwen_vl_utils import process_vision_info
+from transformers import AutoModelForImageTextToText, AutoProcessor
 import os
 
 # Available models configuration
 MODEL_OPTIONS = {
-    "Qwen2.5-VL-3B-Instruct": {
-        "model_id": "Qwen/Qwen2.5-VL-3B-Instruct",
-        "description": "Smaller, faster model (3B parameters)",
+    "Qwen3-VL-2B-Instruct": {
+        "model_id": "Qwen/Qwen3-VL-2B-Instruct",
+        "description": "Smaller, faster model (2B parameters)",
         "quantized": False
     },
-    "Qwen2.5-VL-7B-Instruct": {
-        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
-        "description": "Larger, more accurate model (7B parameters)",
+    "Qwen3-VL-4B-Instruct": {
+        "model_id": "Qwen/Qwen3-VL-4B-Instruct",
+        "description": "Medium model (4B parameters)",
+        "quantized": False
+    },
+    "Qwen3-VL-8B-Instruct": {
+        "model_id": "Qwen/Qwen3-VL-8B-Instruct",
+        "description": "Larger, more accurate model (8B parameters)",
         "quantized": False
     }
 }
@@ -34,6 +38,7 @@ class ImageProcessor:
     A class for processing images with vision-language models.
 
     Handles model loading, image processing, and caption generation.
+    Requires transformers >= 4.57.0 for Qwen3-VL support.
     """
 
     def __init__(self):
@@ -42,7 +47,7 @@ class ImageProcessor:
         self.processor = None
         self.current_model_key = None
 
-    def initialize_model_and_processor(self, model_key="Qwen2.5-VL-3B-Instruct"):
+    def initialize_model_and_processor(self, model_key="Qwen3-VL-2B-Instruct"):
         """
         Initialize model and processor based on selected model key.
 
@@ -79,20 +84,15 @@ class ImageProcessor:
         model_id = model_config["model_id"]
 
         print(f"Loading model: {model_id}")
+        print(f"Note: Qwen3-VL requires transformers >= 4.57.0")
 
-        # Set model token limits for images
-        min_pixels = 256*28*28
-        max_pixels = 1280*28*28
-
-        # Load the model
-        self.model = Qwen2VLForConditionalGeneration.from_pretrained(
+        # Load the model using AutoModelForImageTextToText
+        self.model = AutoModelForImageTextToText.from_pretrained(
             model_id,
             torch_dtype="auto",
             device_map="auto"
         )
-        self.processor = AutoProcessor.from_pretrained(
-            model_id, min_pixels=min_pixels, max_pixels=max_pixels
-        )
+        self.processor = AutoProcessor.from_pretrained(model_id)
 
         self.current_model_key = model_key
 
@@ -116,6 +116,7 @@ class ImageProcessor:
         if self.model is None:
             self.initialize_model_and_processor()
 
+        # Create messages in Qwen3-VL format
         messages = [
             {
                 "role": "user",
@@ -126,26 +127,30 @@ class ImageProcessor:
             }
         ]
 
-        # Prepare inputs
-        text = self.processor.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-        image_inputs, video_inputs = process_vision_info(messages)
-        inputs = self.processor(
-            text=[text],
-            images=image_inputs,
-            videos=video_inputs,
-            padding=True,
+        # Prepare inputs using apply_chat_template
+        inputs = self.processor.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_dict=True,
             return_tensors="pt"
-        ).to(self.model.device)
+        )
+        inputs = inputs.to(self.model.device)
 
         # Generate caption
         generated_ids = self.model.generate(**inputs, max_new_tokens=128)
-        trimmed_tokens = [
-            out[len(inp):] for inp, out in zip(inputs.input_ids, generated_ids)
+
+        # Trim the prompt from generated output
+        generated_ids_trimmed = [
+            out_ids[len(in_ids):]
+            for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
         ]
+
+        # Decode to text
         caption = self.processor.batch_decode(
-            trimmed_tokens, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            generated_ids_trimmed,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False
         )[0]
 
         return caption
