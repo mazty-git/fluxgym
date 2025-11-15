@@ -13,7 +13,7 @@ import shutil
 import json
 import yaml
 from slugify import slugify
-from transformers import AutoProcessor, AutoModelForCausalLM
+from image_processor import ImageProcessor
 from gradio_logsview import LogsView, LogsViewRunner
 from huggingface_hub import hf_hub_download, HfApi
 from library import flux_train_utils, huggingface_util
@@ -136,48 +136,41 @@ def run_captioning(images, concept_sentence, *captions):
     print(f"run_captioning")
     print(f"concept sentence {concept_sentence}")
     print(f"captions {captions}")
-    #Load internally to not consume resources for training
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"device={device}")
-    torch_dtype = torch.float16
-    model = AutoModelForCausalLM.from_pretrained(
-        "multimodalart/Florence-2-large-no-flash-attn", torch_dtype=torch_dtype, trust_remote_code=True, attn_implementation="eager"
-    ).to(device)
-    processor = AutoProcessor.from_pretrained("multimodalart/Florence-2-large-no-flash-attn", trust_remote_code=True)
+
+    # Initialize Qwen VL image processor
+    processor = ImageProcessor()
+    processor.initialize_model_and_processor("Qwen2.5-VL-3B-Instruct")
 
     captions = list(captions)
+    prompt = "Describe this image in detail, focusing on the main subject, setting, and key visual elements."
+
     for i, image_path in enumerate(images):
-        print(captions[i])
-        if isinstance(image_path, str):  # If image is a file path
-            image = Image.open(image_path).convert("RGB")
+        print(f"Processing image {i+1}/{len(images)}: {image_path}")
 
-        prompt = "<DETAILED_CAPTION>"
-        inputs = processor(text=prompt, images=image, return_tensors="pt").to(device, torch_dtype)
-        print(f"inputs {inputs}")
+        try:
+            # Generate caption using Qwen VL
+            caption_text = processor.process_image(image_path, prompt)
+            print(f"caption_text = {caption_text}")
 
-        generated_ids = model.generate(
-            input_ids=inputs["input_ids"], pixel_values=inputs["pixel_values"], max_new_tokens=1024, do_sample=False
-        )
-        print(f"generated_ids {generated_ids}")
+            # Add concept sentence if provided
+            if concept_sentence:
+                caption_text = f"{concept_sentence}, {caption_text}"
 
-        generated_text = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
-        print(f"generated_text: {generated_text}")
-        parsed_answer = processor.post_process_generation(
-            generated_text, task=prompt, image_size=(image.width, image.height)
-        )
-        print(f"parsed_answer = {parsed_answer}")
-        caption_text = parsed_answer["<DETAILED_CAPTION>"].replace("The image shows ", "")
-        print(f"caption_text = {caption_text}, concept_sentence={concept_sentence}")
-        if concept_sentence:
-            caption_text = f"{concept_sentence} {caption_text}"
-        captions[i] = caption_text
+            captions[i] = caption_text
+            yield captions
 
-        yield captions
-    model.to("cpu")
-    del model
-    del processor
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+        except Exception as e:
+            print(f"Error processing image {image_path}: {e}")
+            captions[i] = f"Error: {str(e)}"
+            yield captions
+
+    # Clean up
+    if processor.model is not None:
+        if torch.cuda.is_available():
+            processor.model.cpu()
+            torch.cuda.empty_cache()
+        del processor.model
+        del processor.processor
 
 def recursive_update(d, u):
     for k, v in u.items():
@@ -534,7 +527,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                             scale=1,
                         )
                     with gr.Group(visible=False) as captioning_area:
-                        do_captioning = gr.Button("Add AI captions with Florence-2")
+                        do_captioning = gr.Button("Add AI captions with Qwen VL")
                         output_components.append(captioning_area)
                         #output_components = [captioning_area]
                         caption_list = []
