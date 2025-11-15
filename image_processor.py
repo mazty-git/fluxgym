@@ -138,7 +138,7 @@ class ImageProcessor:
         inputs = inputs.to(self.model.device)
 
         # Generate caption
-        generated_ids = self.model.generate(**inputs, max_new_tokens=128)
+        generated_ids = self.model.generate(**inputs, max_new_tokens=512)
 
         # Trim the prompt from generated output
         generated_ids_trimmed = [

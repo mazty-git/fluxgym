@@ -132,9 +132,10 @@ def create_dataset(destination_folder, size, *inputs):
     return destination_folder
 
 
-def run_captioning(images, concept_sentence, *captions):
+def run_captioning(images, concept_sentence, prompt, *captions):
     print(f"run_captioning")
     print(f"concept sentence {concept_sentence}")
+    print(f"prompt {prompt}")
     print(f"captions {captions}")
 
     # Initialize Qwen VL image processor
@@ -142,7 +143,6 @@ def run_captioning(images, concept_sentence, *captions):
     processor.initialize_model_and_processor("Qwen3-VL-2B-Instruct")
 
     captions = list(captions)
-    prompt = "Describe this image in detail, focusing on the main subject, setting, and key visual elements."
 
     for i, image_path in enumerate(images):
         print(f"Processing image {i+1}/{len(images)}: {image_path}")
@@ -527,6 +527,13 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                             scale=1,
                         )
                     with gr.Group(visible=False) as captioning_area:
+                        caption_prompt = gr.Textbox(
+                            label="Caption Prompt",
+                            value="Describe this image in detail, focusing on the main subject, setting, and key visual elements.",
+                            lines=2,
+                            placeholder="Enter your custom prompt for image captioning...",
+                            interactive=True
+                        )
                         do_captioning = gr.Button("Add AI captions with Qwen VL")
                         output_components.append(captioning_area)
                         #output_components = [captioning_area]
@@ -733,7 +740,7 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
         ],
         outputs=terminal,
     )
-    do_captioning.click(fn=run_captioning, inputs=[images, concept_sentence] + caption_list, outputs=caption_list)
+    do_captioning.click(fn=run_captioning, inputs=[images, concept_sentence, caption_prompt] + caption_list, outputs=caption_list)
     demo.load(fn=hf_module.loaded, js=js, outputs=[hf_token, hf_login, hf_logout, repo_owner])
     refresh.click(update, inputs=listeners, outputs=[train_script, train_config, dataset_folder])
 if __name__ == "__main__":
